@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manningham City Council Emergency Management Tour Map</title>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet" />
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; }
+        #map { width: 100vw; height: 100vh; }
+
+        /* ✅ Layer Toggle Menu */
+        #menu {
+            background: #fff;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            border-radius: 3px;
+            width: auto;
+            min-width: 120px;
+            border: 1px solid rgba(0, 0, 0, 0.4);
+            font-family: 'Open Sans', sans-serif;
+            z-index: 1000;
+        }
+
+        #menu a {
+            font-size: 14px;
+            color: #404040;
+            display: block;
+            padding: 8px;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+            text-align: center;
+        }
+
+        #menu a:last-child {
+            border: none;
+        }
+
+        #menu a:hover {
+            background-color: #f8f8f8;
+            color: #404040;
+        }
+
+        #menu a.active {
+            background-color: #3887be;
+            color: #ffffff;
+        }
+
+        #menu a.active:hover {
+            background: #3074a4;
+        }
+
+        /* ✅ Legend Styling */
+        #legend {
+            position: absolute;
+            bottom: 20px;
+            left: 10px;
+            right: 10px;
+            max-width: 200px;
+            background: white;
+            padding: 8px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .legend-color {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            margin-right: 5px;
+            border-radius: 3px;
+            border: 1px solid #000;
+        }
+
+        /* ✅ Hide legend on small screens, add a button to show it */
+        @media screen and (max-width: 600px) {
+            #legend {
+                display: none;
+                bottom: 60px;
+            }
+
+            #legend-toggle {
+                position: absolute;
+                bottom: 10px;
+                left: 10px;
+                background: #3887be;
+                color: white;
+                border: none;
+                padding: 8px;
+                border-radius: 5px;
+                cursor: pointer;
+                z-index: 1001;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+    <nav id="menu"></nav> <!-- ✅ Toggle Menu for Layers -->
+    <div id="legend"></div> <!-- ✅ Legend -->
+    <button id="legend-toggle">Show Legend</button> <!-- ✅ Button to Show Legend on Mobile -->
+
+    <script>
+        // ✅ Use your actual Mapbox access token
+        mapboxgl.accessToken = 'pk.eyJ1IjoiY3lhbmctbWFubmluZ2hhbSIsImEiOiJjbTdtajQ2dXMwa254Mmtva205MnhqeGZuIn0.2Er6KJ44Ctsp2MyqdxzZQQ';  
+
+        // Initialize the Mapbox map
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/cyang-manningham/cm7mjdw2h007k01ssbfcqgdfl', 
+            center: [145.18, -37.76],  
+            zoom: 12
+        });
+
+        // ✅ Enable full mobile gestures
+        map.touchZoomRotate.enable();
+        map.dragPan.enable();
+        map.scrollZoom.enable();
+        map.doubleClickZoom.enable();
+
+        // ✅ Add Geolocate Control (User Location) at **TOP LEFT**
+        map.addControl(
+            new mapboxgl.GeolocateControl({
+                positionOptions: {
+                    enableHighAccuracy: true
+                },
+                trackUserLocation: true, // Keep tracking location
+                showUserHeading: true    // Show direction arrow
+            }),
+            'top-left' // 🔹 Move button to top-left corner
+        );
+
+        map.on('load', () => {
+            // ✅ Define correct layer IDs from Mapbox Studio
+            const layers = {
+                "BMO Zones": "BMO_Overlay",  // 🔹 Replace with actual BMO layer ID
+                "Hydrants": "Hydrant"  // 🔹 Replace with actual Hydrants layer ID
+            };
+
+            // ✅ Define legend colors based on attributes
+            const legendItems = {
+                "BMO_Overlay": {  
+                    "BMO": "#EDCAB1",
+                    "BMO1": "#E7AB98",
+                    "BMO2": "#CD776A",
+                },
+                "Hydrants": {  
+                    "YVW": "#8ECAE6",
+                    "MANNINGHAM": "#FA8500",
+                    "MANNINGHAM/WATER AUTHORITY": "#FFB805",
+                    "MELBOURNE WATER": "#219CBA",
+                    "UNKNOWN": "#022F46"
+                }
+            };
+
+            // ✅ Create toggle buttons in the menu
+            for (const [name, layerId] of Object.entries(layers)) {
+                const link = document.createElement('a');
+                link.id = layerId;
+                link.href = '#';
+                link.textContent = name;
+                link.className = 'active';
+
+                // ✅ Click event to toggle layers
+                link.onclick = function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const visibility = map.getLayoutProperty(layerId, 'visibility');
+
+                    if (visibility === 'visible') {
+                        map.setLayoutProperty(layerId, 'visibility', 'none');
+                        this.className = '';
+                    } else {
+                        map.setLayoutProperty(layerId, 'visibility', 'visible');
+                        this.className = 'active';
+                    }
+                };
+
+                document.getElementById('menu').appendChild(link);
+            }
+
+            // ✅ Function to update legend dynamically
+            function updateLegend() {
+                let legendHTML = `<h3>Legend</h3>`;
+
+                // 🔹 BMO Overlay Legend
+                legendHTML += `<strong>BMO Zones</strong><br>`;
+                Object.keys(legendItems["BMO_Overlay"]).forEach(zone => {
+                    legendHTML += `<div class="legend-item">
+                        <span class="legend-color" style="background:${legendItems["BMO_Overlay"][zone]}"></span> ${zone}
+                    </div>`;
+                });
+
+                // 🔹 Hydrants Legend
+                legendHTML += `<br><strong>Hydrants</strong><br>`;
+                Object.keys(legendItems["Hydrants"]).forEach(type => {
+                    legendHTML += `<div class="legend-item">
+                        <span class="legend-color" style="background:${legendItems["Hydrants"][type]}"></span> ${type}
+                    </div>`;
+                });
+
+                document.getElementById("legend").innerHTML = legendHTML;
+            }
+
+            // ✅ Call function to update legend
+            updateLegend();
+        });
+
+        // ✅ Mobile-friendly legend toggle
+        document.getElementById('legend-toggle').addEventListener('click', function () {
+            const legend = document.getElementById('legend');
+            legend.style.display = legend.style.display === 'none' ? 'block' : 'none';
+            this.textContent = legend.style.display === 'block' ? 'Hide Legend' : 'Show Legend';
+        });
+
+    </script>
+
+</body>
+</html>
